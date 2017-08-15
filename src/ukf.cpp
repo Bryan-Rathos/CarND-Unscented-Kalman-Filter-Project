@@ -195,7 +195,7 @@ void UKF::Prediction(double delta_t)
   MatrixXd P_aug = MatrixXd::Zero(7, 7);
 
   //create sigma point matrix
-  MatrixXd Xsig_aug = MatrixXd(n_aug, 2 * n_aug + 1);
+  MatrixXd Xsig_aug = MatrixXd(n_aug_, 2 * n_aug_ + 1);
 
   //set lambda for augmented sigma points
   lambda_ = 3 - n_aug_;
@@ -226,7 +226,7 @@ void UKF::Prediction(double delta_t)
   ****************************/
 
   //predict sigma points
-  for(int i = 0; i < 2 * n_aug + 1; i++)
+  for(int i = 0; i < 2 * n_aug_ + 1; i++)
   {
     //extract values for better readability
     double p_x = Xsig_aug(0,i);
@@ -280,7 +280,7 @@ void UKF::Prediction(double delta_t)
   weights_(0) = weight_0;
   for (int i=1; i < 2 * n_aug_ + 1; i++)
   { 
-    double weight = 0.5/(n_aug+lambda_);
+    double weight = 0.5/(n_aug_+lambda_);
     weights_(i) = weight;
   }
 
@@ -330,7 +330,7 @@ void UKF::UpdateLidar(MeasurementPackage meas_package)
   MatrixXd S = MatrixXd(n_z,n_z);
 
   // Build measurement model
-  for(int i=0; i<2*n_aug+1; i++)
+  for(int i=0; i < 2 * n_aug_ + 1; i++)
   {
     // Extract values for better readability
     double p_x = Xsig_pred_(0,i);
@@ -370,7 +370,7 @@ void UKF::UpdateLidar(MeasurementPackage meas_package)
 
   // Calculate cross correlation matrix
   Tc.fill(0.0);
-  for (int i = 0; i < 2 * n_aug + 1; i++)
+  for (int i = 0; i < 2 * n_aug_ + 1; i++)
   {
     // Residual (predicted sigma pts. and predicted measurement mean pts)
     VectorXd z_diff = Zsig.col(i) - z_pred;
@@ -412,7 +412,7 @@ void UKF::UpdateRadar(MeasurementPackage meas_package)
   VectorXd z = meas_package.raw_measurements_;
 
   // Create matrix for sigma points in measurement space
-  MatrixXd Zsig = MatrixXd(n_z, 2 * n_aug + 1);
+  MatrixXd Zsig = MatrixXd(n_z, 2 * n_aug_ + 1);
 
   // Mean predicted measurement
   VectorXd z_pred = VectorXd(n_z);
@@ -481,7 +481,7 @@ void UKF::UpdateRadar(MeasurementPackage meas_package)
 
   // Calculate cross correlation matrix
   Tc.fill(0.0);
-  for (int i = 0; i < 2 * n_aug + 1; i++)
+  for (int i = 0; i < 2 * n_aug_ + 1; i++)
   {
     // Residual (predicted sigma pts. and predicted measurement mean pts)
     VectorXd z_diff = Zsig.col(i) - z_pred;
