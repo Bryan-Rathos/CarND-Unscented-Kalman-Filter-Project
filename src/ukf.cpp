@@ -314,7 +314,84 @@ void UKF::UpdateLidar(MeasurementPackage meas_package)
     Complete this function! Use lidar data to update the belief about the object's
     position. Modify the state vector, x_, and covariance, P_.
     You'll also need to calculate the lidar NIS. */
+  // Set LIDAR measurement dmenson
+  int n_z = 2;
 
+  // Retrieve measurement and store in vector z
+  VectorXd z = meas_package.raw_measurements_;
+
+  // Create matrix for sigma points in measurement space
+  MatrixXd Zsig = MatrixXd(n_z, 2 * n_aug_ +1);
+
+  //Mean predicted measurement
+  VectorXd z_pred = VectorXd(n_z);
+
+  // Measurement covariance matrix S
+  MatrixXd S = MatrixXd(n_z,n_z);
+
+  // Build measurement model
+  for(int i=0; i<2*n_aug+1; i++)
+  {
+    // Extract values for better readability
+    double p_x = Xsig_pred_(0,i);
+    double p_y = Xsig_pred_(1,i);
+  
+    // Measurement model
+    Zsig(0,i) = p_x;
+    Zsig(1,i) = p_y;                     
+  }
+
+  // Mean predicted measurement
+  z_pred.fill(0.0);
+  for(int i = 0; i < 2 * n_aug_+1; i++)
+  {
+    z_pred = z_pred + weights_(i) * Zsig.col(i);
+  }
+
+  // Predicted measurement covariance matrix S
+  S.fill(0.0);
+  for(int i = 0; i < 2 * n_aug_ + 1; i++)
+  {
+    // Residual
+    VectorXd z_diff = Zsig.col(i) - z_pred;
+    S = S + weights(i) * z_diff * z_diff.transpose();
+  }
+
+  // Add measurement noise covariance matrix
+  MatrixXd R = MatrixXd(n_z,n_z);
+  R << pow(std_laspx_,2),0,
+       0,pow(std_laspy_,2);
+  S = S + R;
+
+  /***** UKF LIDAR Update ******/
+
+  // Create matrix for cross correlation Tc
+  MatrixXd Tc = MatrixXd(n_x, n_z);
+
+  // Calculate cross correlation matrix
+  Tc.fill(0.0);
+  for (int i = 0; i < 2 * n_aug + 1; i++)
+  {
+    // Residual (predicted sigma pts. and predicted measurement mean pts)
+    VectorXd z_diff = Zsig.col(i) - z_pred;
+    // state difference
+    VectorXd x_diff = Xsig_pred.col(i) - x;
+    
+    Tc = Tc + weights_(i) * x_diff * z_diff.transpose();
+  }
+
+  //Kalman gain K;
+  MatrixXd K = Tc * S.inverse();
+
+  //residual (Actual measurement and predicted measurement)
+  VectorXd z_diff = z - z_pred;
+
+  //update state mean and covariance matrix
+  x_ = x_ + K * z_diff;
+  P_ = P_ - K * S * K.transpose();
+
+  // Calculate NIS
+  NIS_laser_ = z_diff.transpose() * S.inverse() * z_diff;
 }
 
 /**
@@ -331,6 +408,9 @@ void UKF::UpdateRadar(MeasurementPackage meas_package)
   // Set measurement dimension, radar can measure r, phi, and r_dot
   int n_z = 3;
 
+  // Retrieve measurement and store in vector z
+  VectorXd z = meas_package.raw_measurements_;
+
   // Create matrix for sigma points in measurement space
   MatrixXd Zsig = MatrixXd(n_z, 2 * n_aug + 1);
 
@@ -341,7 +421,7 @@ void UKF::UpdateRadar(MeasurementPackage meas_package)
   MatrixXd S = MatrixXd(n_z,n_z);
 
   // Build measurement model
-  for(int i=0; i<2*n_aug+1; i++)
+  for(int i=0; i < 2 * n_aug_ + 1; i++)
   {
     // Extract values for better readability
     double p_x = Xsig_pred_(0,i);
@@ -372,7 +452,7 @@ void UKF::UpdateRadar(MeasurementPackage meas_package)
 
   // Predicted measurement covariance matrix S
   S.fill(0.0);
-  for (int i = 0; i < 2 * n_aug_ + 1; i++)
+  for(int i = 0; i < 2 * n_aug_ + 1; i++)
   {
     // Residual
     VectorXd z_diff = Zsig.col(i) - z_pred;
@@ -403,7 +483,7 @@ void UKF::UpdateRadar(MeasurementPackage meas_package)
   Tc.fill(0.0);
   for (int i = 0; i < 2 * n_aug + 1; i++)
   {
-    // Residual
+    // Residual (predicted sigma pts. and predicted measurement mean pts)
     VectorXd z_diff = Zsig.col(i) - z_pred;
     //angle normalization
     if(z_diff(1) > M_PI || z_diff(1) < - M_PI)
@@ -425,10 +505,8 @@ void UKF::UpdateRadar(MeasurementPackage meas_package)
   //Kalman gain K;
   MatrixXd K = Tc * S.inverse();
 
-  // Extract measurement z as VectorXd
-  VectorXd z = meas_package.raw_measurements_;
 
-  //residual
+  //residual (Actual measurement and predicted measurement)
   VectorXd z_diff = z - z_pred;
 
   //angle normalization
@@ -443,7 +521,6 @@ void UKF::UpdateRadar(MeasurementPackage meas_package)
   // Calculate NIS
   NIS_radar_ = z_diff.transpose() * S.inverse() * z_diff;
 }
-
 
 
 float NormalizeAngle(float phi_in)
