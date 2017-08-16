@@ -29,10 +29,10 @@ UKF::UKF()
   P_ = MatrixXd(5, 5);
 
   // Process noise standard deviation longitudinal acceleration in m/s^2
-  std_a_ = 30;
+  std_a_ = 1.2;
 
   // Process noise standard deviation yaw acceleration in rad/s^2
-  std_yawdd_ = 30;
+  std_yawdd_ = 0.6;
 
   // Laser measurement noise standard deviation position1 in m
   std_laspx_ = 0.15;
@@ -98,10 +98,10 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package)
   {
     if(!is_initialized_)
     {
-      x_ << 1, 1, 1, 1, 1;
+      //x_ << 1, 1, 1, 1, 1;
 
-      P_ << 1, 0, 0, 0, 0,
-            0, 1, 0, 0, 0,
+      P_ << 0.3, 0, 0, 0, 0,
+            0, 0.2, 0, 0, 0,
             0, 0, 1, 0, 0,
             0, 0, 0, 1, 0,
             0, 0, 0, 0, 1;
@@ -116,7 +116,7 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package)
       {
         float rho      = meas_package.raw_measurements_(0);
         float phi      = meas_package.raw_measurements_(1);
-        float rho _dot = meas_package.raw_measurements_(3);
+        float rho_dot  = meas_package.raw_measurements_(3);
 
         x_(0) = rho * cos(phi);
         x_(1) = rho * sin(phi);
@@ -134,8 +134,8 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package)
     * Prediction
     **********************/
     //compute the time elapsed between the current and previous measurements
-    float dt = (measurement_pack.timestamp_ - time_us_) / 1000000.0; //dt - expressed in seconds
-    time_us_ = measurement_pack.timestamp_;
+    float dt = (meas_package.timestamp_ - time_us_) / 1000000.0; //dt - expressed in seconds
+    time_us_ = meas_package.timestamp_;
 
     Prediction(dt);
 
@@ -173,16 +173,16 @@ void UKF::Prediction(double delta_t)
   MatrixXd Xsig = MatrixXd(n_x_, 2 * n_x_ + 1);
   
   //calculate square root of P
-  MatrixXd A = P.llt().matrixL();
+  MatrixXd A = P_.llt().matrixL();
 
   //set first column of sigma point matrix
   Xsig.col(0)  = x_;
 
   //set remaining sigma points
-  for (int i = 0; i < n_x; i++)
+  for (int i = 0; i < n_x_; i++)
   {
-    Xsig.col(i+1)     = x + sqrt(lambda+n_x) * A.col(i);
-    Xsig.col(i+1+n_x) = x - sqrt(lambda+n_x) * A.col(i);
+    Xsig.col(i+1)      = x_ + sqrt(lambda_+n_x_) * A.col(i);
+    Xsig.col(i+1+n_x_) = x_ - sqrt(lambda_+n_x_) * A.col(i);
   }
 
   /****************************
@@ -295,7 +295,7 @@ void UKF::Prediction(double delta_t)
   P_.fill(0.0);
   for(int i = 0; i < 2 * n_aug_ + 1; i++)
   {
-    VectorXd x_diff = Xsig_pred_.col(i) - x;     //state difference
+    VectorXd x_diff = Xsig_pred_.col(i) - x_;     //state difference
     if(x_diff(3) > M_PI || x_diff(3) < - M_PI)
     {
       x_diff(3) = NormalizeAngle(x_diff(3));       //angle normalization
@@ -354,7 +354,7 @@ void UKF::UpdateLidar(MeasurementPackage meas_package)
   {
     // Residual
     VectorXd z_diff = Zsig.col(i) - z_pred;
-    S = S + weights(i) * z_diff * z_diff.transpose();
+    S = S + weights_(i) * z_diff * z_diff.transpose();
   }
 
   // Add measurement noise covariance matrix
@@ -366,7 +366,7 @@ void UKF::UpdateLidar(MeasurementPackage meas_package)
   /***** UKF LIDAR Update ******/
 
   // Create matrix for cross correlation Tc
-  MatrixXd Tc = MatrixXd(n_x, n_z);
+  MatrixXd Tc = MatrixXd(n_x_, n_z);
 
   // Calculate cross correlation matrix
   Tc.fill(0.0);
@@ -375,7 +375,7 @@ void UKF::UpdateLidar(MeasurementPackage meas_package)
     // Residual (predicted sigma pts. and predicted measurement mean pts)
     VectorXd z_diff = Zsig.col(i) - z_pred;
     // state difference
-    VectorXd x_diff = Xsig_pred.col(i) - x;
+    VectorXd x_diff = Xsig_pred_.col(i) - x_;
     
     Tc = Tc + weights_(i) * x_diff * z_diff.transpose();
   }
@@ -463,7 +463,7 @@ void UKF::UpdateRadar(MeasurementPackage meas_package)
       z_diff(1) = NormalizeAngle(z_diff(1));
     }
 
-    S = S + weights(i) * z_diff * z_diff.transpose();
+    S = S + weights_(i) * z_diff * z_diff.transpose();
   }
 
   // Add measurement noise covariance matrix
@@ -477,7 +477,7 @@ void UKF::UpdateRadar(MeasurementPackage meas_package)
   /***** UKF Radar Update ******/
 
   // Create matrix for cross correlation Tc
-  MatrixXd Tc = MatrixXd(n_x, n_z);
+  MatrixXd Tc = MatrixXd(n_x_, n_z);
 
   // Calculate cross correlation matrix
   Tc.fill(0.0);
@@ -492,7 +492,7 @@ void UKF::UpdateRadar(MeasurementPackage meas_package)
     }
 
     // state difference
-    VectorXd x_diff = Xsig_pred.col(i) - x;
+    VectorXd x_diff = Xsig_pred_.col(i) - x_;
     //angle normalization
     if(x_diff(3) > M_PI || x_diff(3) < - M_PI)
     {
