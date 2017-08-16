@@ -41,8 +41,9 @@ int main()
   Tools tools;
   vector<VectorXd> estimations;
   vector<VectorXd> ground_truth;
+  ofstream outfile;
 
-  h.onMessage([&ukf,&tools,&estimations,&ground_truth, &outfile](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode)
+  h.onMessage([&ukf, &tools, &estimations, &ground_truth, &outfile](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode)
   {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -118,19 +119,6 @@ int main()
           //Call ProcessMeasurment(meas_package) for Kalman filter
           ukf.ProcessMeasurement(meas_package);    	  
 
-          // Write NIS values to output file
-          ofstream outfile;
-          outfile.open("NIS_data.txt");
-
-          if (measurement_pack_list[k].sensor_type_ == MeasurementPackage::LASER)
-          {
-            outfile << "L: " << ukf.NIS_laser_ << "\n";
-          } 
-          else if(measurement_pack_list[k].sensor_type_ == MeasurementPackage::RADAR)
-          {
-            outfile << "R: " << ukf.NIS_radar_ << "\n";
-          }
-
           //Push the current estimated x,y positon from the Kalman filter's state vector
           VectorXd estimate(4);
 
@@ -151,8 +139,16 @@ int main()
 
           VectorXd RMSE = tools.CalculateRMSE(estimations, ground_truth);
 
-          // compute the accuracy (RMSE)
-          cout << "Accuracy - RMSE:" << endl << RMSE << "\n\n";
+          // Write NIS values to output file
+          outfile.open("NIS_data.txt", ofstream::out);
+          if(meas_package.sensor_type_ == MeasurementPackage::LASER)
+          {
+            outfile << "L: " << ukf.NIS_laser_ << "\n";
+          } 
+          else if(meas_package.sensor_type_ == MeasurementPackage::RADAR)
+          {
+            outfile << "R: " << ukf.NIS_radar_ << "\n";
+          }
 
           json msgJson;
           msgJson["estimate_x"] = p_x;
@@ -212,7 +208,7 @@ int main()
   }
   h.run();
 
-  if (outfile.is_open())
+  if(outfile.is_open())
   {
     outfile.close();
   }
