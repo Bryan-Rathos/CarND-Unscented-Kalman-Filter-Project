@@ -42,6 +42,7 @@ int main()
   vector<VectorXd> estimations;
   vector<VectorXd> ground_truth;
   ofstream outfile;
+  outfile.open("NIS_data.txt");
 
   h.onMessage([&ukf, &tools, &estimations, &ground_truth, &outfile](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode)
   {
@@ -140,7 +141,6 @@ int main()
           VectorXd RMSE = tools.CalculateRMSE(estimations, ground_truth);
 
           // Write NIS values to output file
-          outfile.open("NIS_data.txt", ofstream::out);
           if(meas_package.sensor_type_ == MeasurementPackage::LASER)
           {
             outfile << "L: " << ukf.NIS_laser_ << "\n";
@@ -209,7 +209,8 @@ int main()
   h.run();
 
   if(outfile.is_open())
-  {
+  { 
+    cout << "file closed";
     outfile.close();
   }
 }
