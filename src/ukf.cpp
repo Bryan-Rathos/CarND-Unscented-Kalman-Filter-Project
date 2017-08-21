@@ -22,12 +22,6 @@ UKF::UKF()
   // if this is false, radar measurements will be ignored (except during init)
   use_radar_ = true;
 
-  // initial state vector
-  x_ = VectorXd(5);
-
-  // initial covariance matrix
-  P_ = MatrixXd(5, 5);
-
   // Process noise standard deviation longitudinal acceleration in m/s^2
   std_a_ = 1.2;
 
@@ -64,6 +58,12 @@ UKF::UKF()
   // Augmented state dimension
   n_aug_ = 7;
 
+  // initial state vector
+  x_ = VectorXd::Zero(n_x_);
+
+  // initial covariance matrix
+  P_ = MatrixXd::Identity(n_x_, n_x_);
+
   // Sigma point spreading parameter
   lambda_ = 3 - n_x_;
 
@@ -98,13 +98,13 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package)
   {
     if(!is_initialized_)
     {
-      //x_ << 1, 1, 1, 1, 1;
+      //x_ << 0, 0, 0, 0, 0;
 
       P_ << 0.3, 0, 0, 0, 0,
             0, 0.2, 0, 0, 0,
-            0, 0, 1, 0, 0,
-            0, 0, 0, 1, 0,
-            0, 0, 0, 0, 1;
+            0, 0, 700, 0, 0,
+            0, 0, 0, 0.01, 0,
+            0, 0, 0, 0, 0.01;
 
       if(meas_package.sensor_type_ == MeasurementPackage::LASER && use_laser_ == true)
       {
@@ -116,7 +116,7 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package)
       {
         float rho      = meas_package.raw_measurements_(0);
         float phi      = meas_package.raw_measurements_(1);
-        float rho_dot  = meas_package.raw_measurements_(3);
+        float rho_dot  = meas_package.raw_measurements_(2);
 
         x_(0) = rho * cos(phi);
         x_(1) = rho * sin(phi);
@@ -126,7 +126,8 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package)
       time_us_ = meas_package.timestamp_;
 
       // Done initializing, use sensor measurements from next time stamp
-      is_initialized_ = true;        
+      is_initialized_ = true;
+
       return;
     }
     
